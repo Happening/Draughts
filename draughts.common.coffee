@@ -88,7 +88,7 @@ exports.move = (from, to) ->
         Db.shared.set 'dx', dx
         Db.shared.set 'dy', dy
 
-    from + (if capture then 'x' else '-') + to
+    (from+1) + (if capture then 'x' else '-') + (to+1)
 
 exports.canMove = canMove = (from, to) ->
     square = Db.shared.get('board', from)
