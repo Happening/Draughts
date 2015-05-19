@@ -231,6 +231,15 @@ otherColor = (color) ->
     else
         'w'
 
+exports.otherPlayer = (player) ->
+	log 'Getting other player from ', player
+	if Db.shared.get('black') is player
+		log 'Was ', Db.shared.get 'white'
+		return Db.shared.get 'white'
+	else
+		log 'Was ', Db.shared.get 'black'
+		return Db.shared.get 'black'
+
 clone = (obj) ->
     newInstance = {}
     # logmessage = "dict:\n"

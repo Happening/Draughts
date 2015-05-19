@@ -251,26 +251,27 @@ selectMember = (opts) !->
               margin: '-12px'
 
             Plugin.users.iterate (user) !->
-              Ui.item !->
-                Ui.avatar user.get('avatar')
-                Dom.text user.get('name')
+              if Plugin.userId() isnt user
+                Ui.item !->
+                  Ui.avatar user.get('avatar')
+                  Dom.text user.get('name')
 
-                if +user.key() is +value.get()
-                  Dom.style fontWeight: 'bold'
+                  if +user.key() is +value.get()
+                    Dom.style fontWeight: 'bold'
+  
+                    Dom.div !->
+                      Dom.style
+                        Flex: 1
+                        padding: '0 10px'
+                        textAlign: 'right'
+                        fontSize: '150%'
+                        color: Plugin.colors().highlight
+                      Dom.text "✓"
 
-                  Dom.div !->
-                    Dom.style
-                      Flex: 1
-                      padding: '0 10px'
-                      textAlign: 'right'
-                      fontSize: '150%'
-                      color: Plugin.colors().highlight
-                    Dom.text "✓"
-
-                Dom.onTap !->
-                  handleChange user.key()
-                  value.set user.key()
-                  Modal.remove()
+                  Dom.onTap !->
+                    handleChange user.key()
+                    value.set user.key()
+                    Modal.remove()
       , (choice) !->
             log 'choice', choice
             if choice is 'clear'
