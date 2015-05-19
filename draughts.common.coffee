@@ -88,7 +88,7 @@ exports.move = (from, to) ->
         Db.shared.set 'dx', dx
         Db.shared.set 'dy', dy
 
-    from + (if capture then 'x' else '-') + to
+    (from+1) + (if capture then 'x' else '-') + (to+1)
 
 exports.canMove = canMove = (from, to) ->
     square = Db.shared.get('board', from)
@@ -230,6 +230,15 @@ otherColor = (color) ->
         'b'
     else
         'w'
+
+exports.otherPlayer = (player) ->
+	log 'Getting other player from ', player
+	if Db.shared.get('black') is player
+		log 'Was ', Db.shared.get 'white'
+		return Db.shared.get 'white'
+	else
+		log 'Was ', Db.shared.get 'black'
+		return Db.shared.get 'black'
 
 clone = (obj) ->
     newInstance = {}
