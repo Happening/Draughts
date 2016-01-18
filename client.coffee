@@ -1,3 +1,4 @@
+Comments = require 'comments'
 Db = require 'db'
 Dom = require 'dom'
 Modal = require 'modal'
@@ -15,33 +16,27 @@ Draughts = require 'draughts'
 modes = ['International Draughts','Siamese Draughts']
 
 exports.renderSettings = !->
-	Dom.div !->
-		Dom.style margin: '16px -8px'
+	if Db.shared
+		Ui.emptyText tr("Game has started - %1", modes[Db.shared.get('mode')||0])
+	else
+		userCnt = Plugin.users.count().get()
+		selUserId = null
+		if userCnt is 2
+			for userId, v of Plugin.users.get()
+				if +userId isnt Plugin.userId()
+					selUserId = userId
+					break
 
-		if Db.shared
-			Ui.emptyText tr("Game has started")
-		else
-			Form.sep()
-			userCnt = Plugin.users.count().get()
-			selUserId = null
-			if userCnt is 2
-				for userId, v of Plugin.users.get()
-					if +userId isnt Plugin.userId()
-						selUserId = userId
-						break
+		selectMember
+			name: 'opponent'
+			value: selUserId
+			title: tr("Opponent")
+		Form.condition (val) ->
+			tr("Please select an opponent") if !val.opponent
 
-			selectMember
-				name: 'opponent'
-				value: selUserId
-				title: tr("Opponent")
-			Form.sep()
-			Form.condition (val) ->
-				tr("Please select an opponent") if !val.opponent
-
-			selectMode
-				name: 'mode'
-				title: tr('Mode')
-			Form.sep()
+		selectMode
+			name: 'mode'
+			title: tr('Mode')
 
 exports.render = !->
 	whiteId = Db.shared.get('white')
@@ -51,10 +46,17 @@ exports.render = !->
 	else if Plugin.userId() is blackId
 		'black'
 
+	Comments.enable
+		messages:
+			move: (c) -> tr("%1 moved %2", c.user, c.v)
+			resign: (c) -> tr("%1 resigned", c.user)
+			proposeDraw: (c) -> tr("%1 proposed a draw", c.user)
+			acceptDraw: (c) -> tr("%1 accepted the draw", c.user)
+			declineDraw: (c) -> tr("%1 declined the draw", c.user)
+
 	if challenge = Db.shared.get('challenge')
 		Dom.div !->
 			Dom.style
-				padding: '8px'
 				textAlign: 'center'
 				fontSize: '120%'
 
@@ -131,7 +133,7 @@ exports.render = !->
 					markers.set {}
 
 			Dom.div !->
-				size = 0 | Math.max(200, Math.min(Dom.viewport.get('width') - 16, 480)) / 10
+				size = 0 | Math.max(200, Math.min(Page.width() - 16, 480)) / 10
 				Dom.cls 'board'
 				Dom.style width: "#{size * 10}px"
 
@@ -227,8 +229,6 @@ exports.render = !->
 							Server.call 'resign'
 					, ['no',tr('No'),'yes',tr('Yes')]
 
-	Social.renderComments()
-
 # input that handles selection of a member
 selectMember = (opts) !->
 	opts ||= {}
@@ -237,85 +237,24 @@ selectMember = (opts) !->
 
 	value = Obs.create(initValue)
 	Form.box !->
-		Dom.style fontSize: '125%', paddingRight: '56px'
+		Dom.style fontSize: '125%', marginBottom: '12px'
 		Dom.text opts.title || tr("Selected member")
 		v = value.get()
 		Dom.div !->
 			Dom.style color: (if v then 'inherit' else '#aaa')
 			Dom.text (if v then Plugin.userName(v) else tr("Nobody"))
 		if v
-			Ui.avatar Plugin.userAvatar(v), style: position: 'absolute', right: '6px', top: '50%', marginTop: '-20px'
+			Ui.avatar Plugin.userAvatar(v), style: position: 'absolute', right: '-28px', top: '50%', marginTop: '-20px'
 
 		Dom.onTap !->
 			Modal.show opts.selectTitle || tr("Select member"), !->
-				Dom.style width: '80%'
-				Dom.div !->
-					Dom.style
-						maxHeight: '40%'
-						backgroundColor: '#eee'
-						margin: '-12px'
-					Dom.overflow()
-
-					Plugin.users.iterate (user) !->
-						if Plugin.userId() isnt user
-							Ui.item !->
-								Ui.avatar user.get('avatar')
-								Dom.text user.get('name')
-
-								if +user.key() is +value.get()
-									Dom.style fontWeight: 'bold'
-
-									Dom.div !->
-										Dom.style
-											Flex: 1
-											padding: '0 10px'
-											textAlign: 'right'
-											fontSize: '150%'
-											color: Plugin.colors().highlight
-										Dom.text "✓"
-
-								Dom.onTap !->
-									handleChange user.key()
-									value.set user.key()
-									Modal.remove()
-			, (choice) !->
-				log 'choice', choice
-				if choice is 'clear'
-					handleChange ''
-					value.set ''
-			, ['cancel', tr("Cancel"), 'clear', tr("Clear")]
-
-############### MODE
-selectMode = (opts) !->
-	opts ||= {}
-
-	[handleChange, initValue] = Form.makeInput opts, (v) ->
-		0 | v
-
-	value = Obs.create(initValue)
-	Form.box !->
-		Dom.style fontSize: '125%', paddingRight: '56px'
-		Dom.text opts.title || tr("Select Mode")
-		v = value.get()
-		Dom.div !->
-			Dom.style color: 'inherit'
-			Dom.text modes[v]
-
-		Dom.onTap !->
-			Modal.show opts.selectTitle || tr("Select mode"), !->
-				Dom.style width: '80%'
-				Dom.div !->
-					Dom.style
-						maxHeight: '40%'
-						backgroundColor: '#eee'
-						margin: '-12px'
-					Dom.overflow()
-
-					modes.forEach (txt,key) !->
+				Plugin.users.iterate (user) !->
+					if Plugin.userId() isnt user
 						Ui.item !->
-							Dom.text txt
+							Ui.avatar key: user.get('avatar'), style: marginRight: '12px'
+							Dom.text user.get('name')
 
-							if key is value.get()
+							if +user.key() is +value.get()
 								Dom.style fontWeight: 'bold'
 
 								Dom.div !->
@@ -328,15 +267,26 @@ selectMode = (opts) !->
 									Dom.text "✓"
 
 							Dom.onTap !->
-								handleChange key
-								value.set key
+								handleChange user.key()
+								value.set user.key()
 								Modal.remove()
 			, (choice) !->
 				log 'choice', choice
 				if choice is 'clear'
 					handleChange ''
 					value.set ''
-			, ['cancel', tr("Cancel")]
+			, ['cancel', tr("Cancel"), 'clear', tr("Clear")]
+
+############### MODE
+selectMode = (opts) !->
+	opts ||= {}
+
+	Form.segmented
+		name: 'mode'
+		value: 0
+		segments: [0, modes[0], 1, modes[1]]
+		onChange: (v) !->
+			log "on change", v
 
 Dom.css
 	'.board':

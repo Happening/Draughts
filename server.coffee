@@ -1,11 +1,14 @@
+Comments = require 'comments'
 Db = require 'db'
 Plugin = require 'plugin'
 Event = require 'event'
 Draughts = require 'draughts'
 
 exports.onInstall = (config) !->
+	log "onInstall -", JSON.stringify(config)
 	if config and not config.mode
 		config.mode = 0
+	log "onInstall1-", JSON.stringify(config)
 	if config and config.opponent
 		config = if Math.random()>.5
 			{white: Plugin.userId(), black: config.opponent, mode: config.mode}
@@ -23,8 +26,8 @@ exports.onInstall = (config) !->
 
 		Event.create
 			unit: 'game'
-			text: "Draughts: #{Plugin.userName()} wants to play"
-			#text_you: "Draughts: you challenged #{xx}"
+			text: "#{Plugin.userName()} wants to play"
+			#text_you: "you challenged #{xx}"
 			for: x=[+config.white, +config.black]
 			# new: [-Plugin.userId()]
 
@@ -68,13 +71,15 @@ exports.client_move = (from, to) !->
 		m = Draughts.move from, to
 		log m
 
-		Event.create
-			unit: 'move'
-			text: "Draughts: #{Plugin.userName()} moved #{m}"
+		Comments.post
+			s: 'move'
+			v: ''+m
+			path: '/'
+			pushText: "#{Plugin.userName()} moved #{m}"
 			for: [Draughts.otherPlayer(Plugin.userId())]
 
 exports.client_resign = () !->
-	log 'resigned'
+	log 'resign'
 	if Db.shared.get('white') is Plugin.userId()
 		Db.shared.set 'result', 'black'
 	else if Db.shared.get('black') is Plugin.userId()
@@ -82,9 +87,10 @@ exports.client_resign = () !->
 	else
 		return
 
-	Event.create
-		unit: 'game'
-		text: "Draughts: #{Plugin.userName()} has resigned"
+	Comments.post
+		s: 'resign'
+		path: '/'
+		pushText: "#{Plugin.userName()} has resigned"
 		for: [Draughts.otherPlayer(Plugin.userId())]
 
 exports.client_draw = () !->
@@ -96,9 +102,10 @@ exports.client_draw = () !->
 	else
 		return
 
-	Event.create
-		unit: 'game'
-		text: "Draughts: #{Plugin.userName()} has proposed a draw"
+	Comments.post
+		s: 'proposeDraw'
+		path: '/'
+		pushText: "#{Plugin.userName()} has proposed a draw"
 		for: [Draughts.otherPlayer(Plugin.userId())]
 
 exports.client_draw_accept = () !->
@@ -108,9 +115,10 @@ exports.client_draw_accept = () !->
 			Db.shared.remove 'draw'
 			Db.shared.set 'result', 'draw'
 
-			Event.create
-				unit: 'game'
-				text: "Draughts: #{Plugin.userName()} has accepted a draw"
+			Comments.post
+				s: 'acceptDraw'
+				path: '/'
+				pushText: "#{Plugin.userName()} has accepted the draw"
 				for: [Draughts.otherPlayer(Plugin.userId())]
 
 exports.client_draw_decline = () !->
@@ -119,7 +127,8 @@ exports.client_draw_decline = () !->
 		if Db.shared.get(proposer) is Plugin.userId()
 			Db.shared.remove 'draw'
 
-			Event.create
-				unit: 'game'
-				text: "Draughts: #{Plugin.userName()} has declined a draw"
+			Comments.post
+				s: 'declineDraw'
+				path: '/'
+				pushText: "#{Plugin.userName()} has declined the draw"
 				for: [Draughts.otherPlayer(Plugin.userId())]
